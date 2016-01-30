@@ -1,33 +1,13 @@
-This repo is for distribution on `npm` and `bower`. The source for this module is in the [main UI Grid repo](https://github.com/angular-ui/ui-grid). Please file issues and pull requests against that repo.
+This repo is for distribution on `npm` and `bower`. The source for this module is in the [main UI Grid repo](https://github.com/ClientSuccess/clientsuccess-ui-grid). Please file issues and pull requests against that repo.
 
 ## Install
 
 You can install this package either with `npm` or with `bower`.
 
-### npm
-
-```shell
-npm install angular-ui-grid
-```
-
-Then add a `<script>` to your `index.html`:
-
-```html
-<link rel="stylesheet" type="text/css" href="/node_modules/angular-ui-grid/ui-grid.css" />
-<script src="/node_modules/angular-ui-grid/ui-grid.js"></script>
-```
-
 ### bower
 
 ```shell
-bower install angular-ui-grid
-```
-
-Then add a `<script>` to your `index.html`:
-
-```html
-<link rel="stylesheet" type="text/css" href="/bower_components/angular-ui-grid/ui-grid.css" />
-<script src="/bower_components/angular-ui-grid/ui-grid.js"></script>
+bower install clientsuccess-angular-ui-grid
 ```
 
 ## Documentation

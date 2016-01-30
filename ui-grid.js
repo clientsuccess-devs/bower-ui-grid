@@ -1,5 +1,5 @@
 /*!
- * ui-grid - v3.1.0 - 2016-01-19
+ * ui-grid - v3.1.0-2a220cc - 2016-01-29
  * Copyright (c) 2016 ; License: MIT 
  */
 
@@ -21308,6 +21308,9 @@ module.filter('px', function() {
                 var movingElm;
                 var reducedWidth;
                 var moveOccurred = false;
+                //** @izeni
+                var oldMouseMovement;
+                var leftMoveLimit;
 
                 var downFn = function( event ){
                   //Setting some variables required for calculations.
@@ -21315,10 +21318,13 @@ module.filter('px', function() {
                   if ( $scope.grid.hasLeftContainer() ){
                     gridLeft += $scope.grid.renderContainers.left.header[0].getBoundingClientRect().width;
                   }
-
                   previousMouseX = event.pageX;
                   totalMouseMovement = 0;
                   rightMoveLimit = gridLeft + $scope.grid.getViewportWidth();
+
+                  //** @izeni
+                  oldMouseMovement = 0;
+                  leftMoveLimit =  previousMouseX - gridLeft;
 
                   if ( event.type === 'mousedown' ){
                     $document.on('mousemove', moveFn);
@@ -21330,6 +21336,7 @@ module.filter('px', function() {
                 };
 
                 var moveFn = function( event ) {
+
                   var changeValue = event.pageX - previousMouseX;
                   if ( changeValue === 0 ){ return; }
                   //Disable text selection in Chrome during column move
@@ -21343,6 +21350,26 @@ module.filter('px', function() {
                   else if (elmCloned) {
                     moveElement(changeValue);
                     previousMouseX = event.pageX;
+                  }
+                };
+
+                //** @izeni
+                // Remove borders: check if any have the border class and remove if they do (called in upFn below)
+                var clearBorders = function() {
+                  var rights = $elm[0].parentElement.querySelectorAll('.borderRightColumn'),
+                    lefts = $elm[0].parentElement.querySelectorAll('.borderLeftColumn'),
+                    rlength = rights.length,
+                    llength = lefts.length;
+
+                  if (rlength > 0){
+                    for (var i = 0; i<rlength; i++){
+                      $(rights[i]).removeClass('borderRightColumn');
+                    }
+                  }
+                  if (llength> 0) {
+                    for (var j = 0; j<llength; j++){
+                      $(lefts[j]).removeClass('borderLeftColumn');
+                    }
                   }
                 };
 
@@ -21413,6 +21440,9 @@ module.filter('px', function() {
                       ($scope.grid, columnIndex, columns.length - 1);
                     }
                   }
+
+                  //** @izeni
+                  clearBorders();
                 };
 
                 var onDownEvents = function(){
@@ -21443,6 +21473,7 @@ module.filter('px', function() {
 
                   //Left of cloned element should be aligned to original header cell.
                   movingElm.addClass('movingColumn');
+
                   var movingElementStyles = {};
                   movingElementStyles.left = $elm[0].offsetLeft + 'px';
                   var gridRight = $scope.grid.element[0].getBoundingClientRect().right;
@@ -21455,7 +21486,14 @@ module.filter('px', function() {
                 };
 
                 var moveElement = function (changeValue) {
-                  //Calculate total column width
+                  //** @izeni
+                  // Check to see if the mouse as moved 'out of bounds' on the active grid
+                  var oob = false;
+                  if (totalMouseMovement <= -leftMoveLimit && oldMouseMovement < -leftMoveLimit){
+                    oob = true;
+                  }
+
+                  // Calculate total column width
                   var columns = $scope.grid.columns;
                   var totalColumnWidth = 0;
                   for (var i = 0; i < columns.length; i++) {
@@ -21470,12 +21508,22 @@ module.filter('px', function() {
                   var newElementLeft;
 
                   newElementLeft = currentElmLeft - gridLeft + changeValue;
+                  if (oob){
+                    newElementLeft = 0;
+                  }
                   newElementLeft = newElementLeft < rightMoveLimit ? newElementLeft : rightMoveLimit;
 
                   //Update css of moving column to adjust to new left value or fire scroll in case column has reached edge of grid
                   if ((currentElmLeft >= gridLeft || changeValue > 0) && (currentElmRight <= rightMoveLimit || changeValue < 0)) {
-                    movingElm.css({visibility: 'visible', 'left': (movingElm[0].offsetLeft + 
-                      (newElementLeft < rightMoveLimit ? changeValue : (rightMoveLimit - currentElmLeft))) + 'px'});
+
+                    //** @izeni
+                    // If the cursor is out of bounds, do not update the position of the cloned column header
+                    if (oob) {
+                      movingElm.css({visibility: 'visible', 'left': 0 + 'px'});
+                    } else {
+                      movingElm.css({visibility: 'visible', 'left': (movingElm[0].offsetLeft + (newElementLeft < rightMoveLimit ?
+                        changeValue : (rightMoveLimit - currentElmLeft))) + 'px'});
+                    }
                   }
                   else if (totalColumnWidth > Math.ceil(uiGridCtrl.grid.gridWidth)) {
                     changeValue *= 8;
@@ -21498,6 +21546,16 @@ module.filter('px', function() {
                   }
                   if ($scope.newScrollLeft === undefined) {
                     totalMouseMovement += changeValue;
+
+                    //** @izeni
+                    // Keep the column header inside the grid
+                    oldMouseMovement += changeValue;
+                    if (oob){
+                      totalMouseMovement = -leftMoveLimit;
+                    } else {
+                      totalMouseMovement = oldMouseMovement;
+                    }
+
                   }
                   else {
                     totalMouseMovement = $scope.newScrollLeft + newElementLeft - totalColumnsLeftWidth;
@@ -21508,6 +21566,85 @@ module.filter('px', function() {
                   if (reducedWidth < $scope.col.drawnWidth) {
                     reducedWidth += Math.abs(changeValue);
                     movingElm.css({'width': reducedWidth + 'px'});
+                  }
+
+                  //** @izeni
+                  // $scope.grid.columns has all columns including client name and columns not visible on DOM
+
+                  var allColumnsOnGrid = $scope.grid.columns;
+                  // Get an array to represent visible columns on DOM
+                  var visibleColumnsOnGrid = [];
+                  // Get the width of each column to measure trigger events
+                  var columnsWidthArray = [];
+                  var colWidth = 0;
+
+                  for (var j = 0; j < allColumnsOnGrid.length; j++) {
+                    // Columns must be movable and visible
+                    if (allColumnsOnGrid[j].colDef.enableColumnMoving === true && allColumnsOnGrid[j].visible === true){
+                      colWidth = allColumnsOnGrid[j].drawnWidth || allColumnsOnGrid[j].width || allColumnsOnGrid[j].colDef.width;
+                      columnsWidthArray.push(colWidth);
+                      visibleColumnsOnGrid.push(allColumnsOnGrid[j]);
+                    }
+                  }
+
+                  // Get container of all header cells on DOM
+                  var parentElement = $elm[0].parentElement;
+
+                  var indexOnDom = $elm.index();
+                  var indexOnGrid = indexOnDom;
+
+                  // currentColumnWidth
+                  var currentColumnWidth = columnsWidthArray[indexOnGrid];
+
+                  // Calculate drop zone, much of this code was reused from the 'up' function to decided where to redraw column on release
+                  // Case where column should be moved to a position on its left
+                  if (totalMouseMovement < 0) {
+                    totalColumnsLeftWidth = 0;
+                    for (var k = indexOnDom - 1; k >= 0; k--) {
+                      if (angular.isUndefined(visibleColumnsOnGrid[k].colDef.visible) || visibleColumnsOnGrid[k].colDef.visible === true) {
+                        totalColumnsLeftWidth += visibleColumnsOnGrid[k].drawnWidth || visibleColumnsOnGrid[k].width || visibleColumnsOnGrid[k].colDef.width;
+                        if (totalColumnsLeftWidth > Math.abs(totalMouseMovement)) {
+                          $($elm[0].parentElement.children[k]).removeClass('borderLeftColumn');
+                          $($elm[0].parentElement.children[k + 2]).removeClass('borderLeftColumn');
+                          $($elm[0].parentElement.children[k - 1]).removeClass('borderRightColumn');
+                          $($elm[0].parentElement.children[k + 1]).removeClass('borderRightColumn'); // This is to remove the border when direction changes right to left
+                          $($elm[0].parentElement.children[k + 1]).addClass('borderLeftColumn');
+                          $($elm[0].parentElement.children[k]).addClass('borderRightColumn');
+                          $($elm[0].parentElement.children[0]).removeClass('borderLeftColumn');
+                          break;
+                        }
+                      }
+                    }
+                    // Case where column should be moved to beginning of the grid.
+                    if (totalColumnsLeftWidth < Math.abs(totalMouseMovement)) {
+                      $($elm[0].parentElement.children[1]).removeClass('borderLeftColumn');
+                      $($elm[0].parentElement.children[0]).addClass('borderLeftColumn');
+                      $($elm[0].parentElement.children[0]).removeClass('borderRightColumn');
+                    }
+                  }
+
+                  // Case where column should be moved to a position on its right
+                  else if (totalMouseMovement > 0) {
+                    var totalColumnsRightWidth = 0;
+                    for (var ir = indexOnDom + 1; ir < visibleColumnsOnGrid.length; ir++) {
+                      if (angular.isUndefined(visibleColumnsOnGrid[ir].colDef.visible) || visibleColumnsOnGrid[ir].colDef.visible === true) {
+                        totalColumnsRightWidth += visibleColumnsOnGrid[ir].drawnWidth || visibleColumnsOnGrid[ir].width || visibleColumnsOnGrid[ir].colDef.width;
+                        if (totalColumnsRightWidth > totalMouseMovement) {
+                          $($elm[0].parentElement.children[ir]).removeClass('borderRightColumn');
+                          $($elm[0].parentElement.children[ir - 2]).removeClass('borderRightColumn');
+                          $($elm[0].parentElement.children[ir + 1]).removeClass('borderLeftColumn');
+                          $($elm[0].parentElement.children[ir - 1]).removeClass('borderLeftColumn');
+                          $($elm[0].parentElement.children[ir - 1]).addClass('borderRightColumn');
+                          $($elm[0].parentElement.children[ir]).addClass('borderLeftColumn');
+                          break;
+                        }
+                      }
+                    }
+                    // Case where column should be moved to end of the grid.
+                    // todo May need to do additional testing for this when scrolling works correctly
+                    if (totalColumnsRightWidth < totalMouseMovement) {
+                      $($elm[0].parentElement.children[visibleColumnsOnGrid - 2]).removeClass('borderLeftColumn');
+                    }
                   }
                 };
               }
