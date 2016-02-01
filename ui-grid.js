@@ -1,5 +1,5 @@
 /*!
- * ui-grid - v3.1.0-2a220cc - 2016-01-29
+ * ui-grid - v3.1.0-4-g17b9fc0-3c29e2d - 2016-02-01
  * Copyright (c) 2016 ; License: MIT 
  */
 
@@ -1768,9 +1768,19 @@ angular.module('ui.grid')
         menuItems = menuItems.concat( service.showHideColumns( $scope ) );
       }
 
-      menuItems.sort(function(a, b){
-        return a.order - b.order;
-      });
+      if ( $scope.grid.options.gridMenuSortAlphabetical ) {
+        menuItems.sort(function(a, b){
+          if (a.title === 'Columns:') {
+            return -1;
+          } else {
+            return a.title > b.title;
+          }
+        });
+      } else {
+        menuItems.sort(function(a, b){
+          return a.order - b.order;
+        });
+      }
 
       return menuItems;
     },
