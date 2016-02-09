@@ -1,5 +1,5 @@
 /*!
- * ui-grid - v3.1.0-4 - 2016-02-01
+ * ui-grid - v3.1.0-13-gce4b630-b307d76 - 2016-02-09
  * Copyright (c) 2016 ; License: MIT 
  */
 
@@ -1769,11 +1769,12 @@ angular.module('ui.grid')
       }
 
       if ( $scope.grid.options.gridMenuSortAlphabetical ) {
+        var fieldsToNotSort = ['Columns:', 'Clear all filters'];
         menuItems.sort(function(a, b){
-          if (a.title === 'Columns:' || b.title === 'Columns:') {
-            if (a.title === 'Columns:') {
+          if (fieldsToNotSort.indexOf(a.title) >= 0 || fieldsToNotSort.indexOf(b.title) >= 0) {
+            if (fieldsToNotSort.indexOf(a.title) >= 0 && fieldsToNotSort.indexOf(b.title) < 0) {
               return -1;
-            } else if (b.title === 'Columns:') {
+            } else if (fieldsToNotSort.indexOf(b.title) >= 0 && fieldsToNotSort.indexOf(a.title) < 0) {
               return 1;
             } else {
               return 0;
